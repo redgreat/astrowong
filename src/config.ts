@@ -1,5 +1,5 @@
 export const SITE = {
-  website: "https://astrowong.vercel.app/", // 部署后更新为实际域名
+  website: "https://me.wongcw.cn",
   author: "wangcw",
   profile: "https://github.com/redgreat",
   desc: "無糧不聚兵 - 个人技术博客，记录技术探索与生活感悟",
