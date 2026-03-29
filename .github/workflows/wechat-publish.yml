@@ -1,0 +1,64 @@
+name: 同步到微信公众号
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/data/blog/**/*.md'
+
+  # 支持手动触发，指定文件路径
+  workflow_dispatch:
+    inputs:
+      file_path:
+        description: '要同步的 Markdown 文件路径（如 src/data/blog/2026/03/hello-world.md）'
+        required: true
+        type: string
+
+jobs:
+  sync-wechat:
+    runs-on: ubuntu-latest
+    # 仅在配置了微信密钥时才运行
+    if: ${{ vars.WECHAT_ENABLED == 'true' }}
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # 需要前一次提交来做 diff
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 安装依赖
+        run: npm install gray-matter marked axios form-data
+
+      - name: 检测新增/修改的文章
+        id: detect
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          # 获取本次 push 中新增或修改的博客 md 文件
+          FILES=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- 'src/data/blog/**/*.md' | tr '\n' ' ')
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+          if [ -z "$FILES" ]; then
+            echo "📌 没有检测到新增/修改的博客文章"
+          else
+            echo "📌 检测到变更文件: $FILES"
+          fi
+
+      - name: 同步到微信草稿箱 (自动)
+        if: ${{ github.event_name == 'push' && steps.detect.outputs.files != '' }}
+        env:
+          WECHAT_APP_ID: ${{ secrets.WECHAT_APP_ID }}
+          WECHAT_APP_SECRET: ${{ secrets.WECHAT_APP_SECRET }}
+          BLOG_BASE_URL: ${{ vars.BLOG_BASE_URL || 'https://me.wongcw.cn' }}
+        run: node scripts/wechat-publish.mjs ${{ steps.detect.outputs.files }}
+
+      - name: 同步到微信草稿箱 (手动)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          WECHAT_APP_ID: ${{ secrets.WECHAT_APP_ID }}
+          WECHAT_APP_SECRET: ${{ secrets.WECHAT_APP_SECRET }}
+          BLOG_BASE_URL: ${{ vars.BLOG_BASE_URL || 'https://me.wongcw.cn' }}
+        run: node scripts/wechat-publish.mjs ${{ github.event.inputs.file_path }}
