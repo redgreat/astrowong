@@ -18,7 +18,7 @@ jobs:
   sync-wechat:
     runs-on: ubuntu-latest
     # 仅在配置了微信密钥时才运行
-    if: ${{ vars.WECHAT_ENABLED == 'true' }}
+    if: ${{ secrets.WECHAT_APP_ID != '' }}
 
     steps:
       - name: 检出代码
